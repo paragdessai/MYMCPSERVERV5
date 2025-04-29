@@ -126,11 +126,16 @@ const getYoMamaJoke = server.tool(
 const getCountryFacts = server.tool(
   "get-country-facts",
   "Get three facts about a specified country",
-  async ({ country }) => {
+  async (request) => {
+    // extract the 'country' parameter from the incoming request
+    const { country } = request.params as { country: string };
+
+    // call the Rest Countries API
     const response = await fetch(
       `https://restcountries.com/v3.1/name/${encodeURIComponent(country)}?fullText=true`
     );
     const data = await response.json();
+
     if (!Array.isArray(data) || data.length === 0) {
       return {
         content: [
@@ -141,6 +146,7 @@ const getCountryFacts = server.tool(
         ],
       };
     }
+
     const info = data[0];
     const capital = Array.isArray(info.capital)
       ? info.capital.join(", ")
@@ -149,6 +155,7 @@ const getCountryFacts = server.tool(
       ? info.population.toLocaleString()
       : "N/A";
     const region = info.region || "N/A";
+
     return {
       content: [
         { type: "text", text: `Capital: ${capital}` },
