@@ -30,12 +30,16 @@ const server = new McpServer({
     {
       name: "get-weather",
       description: "Get current weather information for a given city",
+      /*  ★ Use true JSON-Schema so the LLM knows the argument is required */
       parameters: {
-        city: {
-          type: "string",
-          description: "Name of the city, e.g. 'New York'",
-          required: true,        // Copilot will prompt for this
+        type: "object",
+        properties: {
+          city: {
+            type: "string",
+            description: "Name of the city, e.g. \"New York\"",
+          },
         },
+        required: ["city"],
       },
     },
   ],
@@ -47,8 +51,8 @@ const getChuckJoke = server.tool(
   "Get a random Chuck Norris joke",
   async () => {
     const res = await fetch("https://api.chucknorris.io/jokes/random");
-    const data = await res.json();
-    return { content: [{ type: "text", text: data.value }] };
+    const { value } = await res.json();
+    return { content: [{ type: "text", text: value }] };
   }
 );
 
@@ -69,8 +73,8 @@ const getDadJoke = server.tool(
     const res = await fetch("https://icanhazdadjoke.com/", {
       headers: { Accept: "application/json" },
     });
-    const data = await res.json();
-    return { content: [{ type: "text", text: data.joke }] };
+    const { joke } = await res.json();
+    return { content: [{ type: "text", text: joke }] };
   }
 );
 
@@ -81,22 +85,19 @@ const getYoMamaJoke = server.tool(
     const res = await fetch(
       "https://www.yomama-jokes.com/api/v1/jokes/random"
     );
-    const data = await res.json();
-    return { content: [{ type: "text", text: data.joke }] };
+    const { joke } = await res.json();
+    return { content: [{ type: "text", text: joke }] };
   }
 );
 
-// ────────── Weather tool (compile-safe) ──────────
+// ────────── Weather tool ──────────
 const getWeather = server.tool(
   "get-weather",
   "Get current weather information for a given city",
-  async (params: any) => {
-    // Works with both param styles: { city } OR { parameters: { city } }
-    const city: string | undefined =
-      params?.city ?? params?.parameters?.city;
-
+  // `params` comes back as { city } when JSON-Schema is used.
+  async (params: { city?: string }) => {
+    const city = params.city?.trim();
     if (!city) {
-      // Should rarely happen because city is marked required
       return {
         content: [
           { type: "text", text: "Please specify a city name (e.g. London)." },
@@ -150,7 +151,6 @@ app.get("/sse", async (req: Request, res: Response) => {
 
   transports[transport.sessionId] = transport;
   res.on("close", () => delete transports[transport.sessionId]);
-
   await server.connect(transport);
 });
 
