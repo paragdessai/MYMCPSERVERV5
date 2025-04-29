@@ -4,7 +4,7 @@ import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 
 const server = new McpServer({
   name: "jokesMCP",
-  description: "A server that provides jokes",
+  description: "A server that provides jokes (and weather!)",
   version: "1.0.0",
   tools: [
     {
@@ -27,23 +27,16 @@ const server = new McpServer({
       description: "Get a random Yo Mama joke",
       parameters: {},
     },
-
-    /* ──────────────── NEW WEATHER TOOL ──────────────── */
     {
       name: "get-weather",
       description: "Get current weather information for a given city",
       parameters: {
-        type: "object",
-        properties: {
-          city: {
-            type: "string",
-            description: "Name of the city, e.g. 'New York'",
-          },
+        city: {
+          type: "string",
+          description: "Name of the city, e.g. 'New York'",
         },
-        required: ["city"],
       },
     },
-    /* ─────────────────────────────────────────────────── */
   ],
 });
 
@@ -125,13 +118,13 @@ const getYoMamaJoke = server.tool(
   }
 );
 
-/* ──────────────── NEW WEATHER TOOL HANDLER ──────────────── */
+// Get Weather tool
 const getWeather = server.tool(
   "get-weather",
   "Get current weather information for a given city",
-  async ({ city }: { city: string }) => {
+  async (req: any) => {
+    const city = req.parameters?.city as string;
     try {
-      // wttr.in returns JSON with current conditions at /{city}?format=j1
       const response = await fetch(
         `https://wttr.in/${encodeURIComponent(city)}?format=j1`
       );
@@ -165,7 +158,6 @@ const getWeather = server.tool(
     }
   }
 );
-/* ─────────────────────────────────────────────────────────── */
 
 const app = express();
 
