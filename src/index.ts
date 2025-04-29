@@ -1,6 +1,7 @@
 import express, { Request, Response } from "express";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
+import { z } from "zod";
 
 const server = new McpServer({
   name: "jokesMCP",
@@ -86,9 +87,7 @@ const getDadJoke = server.tool(
   "Get a random dad joke",
   async () => {
     const response = await fetch("https://icanhazdadjoke.com/", {
-      headers: {
-        Accept: "application/json",
-      },
+      headers: { Accept: "application/json" },
     });
     const data = await response.json();
     return {
@@ -122,19 +121,26 @@ const getYoMamaJoke = server.tool(
   }
 );
 
-// --- Updated registration for the country-facts tool with explicit generic ---
-const getCountryFacts = server.tool<{ country: string }>(
+// Get Country facts tool (with Zod schema for parameters)
+const getCountryFacts = server.tool(
   "get-country-facts",
   "Get three facts about a specified country",
+  {
+    country: z.string().describe("Name of the country to retrieve facts for"),
+  },
   async ({ country }) => {
     const resp = await fetch(
       `https://restcountries.com/v3.1/name/${encodeURIComponent(country)}?fullText=true`
     );
     const data = await resp.json();
+
     if (!Array.isArray(data) || data.length === 0) {
       return {
         content: [
-          { type: "text", text: `No data found for country "${country}".` },
+          {
+            type: "text",
+            text: `No data found for country "${country}".`,
+          },
         ],
       };
     }
