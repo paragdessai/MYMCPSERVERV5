@@ -7,13 +7,10 @@ const server = new McpServer({
   description: "A server that provides jokes (and weather!)",
   version: "1.0.0",
   tools: [
-    /* ── Joke tools (no parameters) ── */
     { name: "get-chuck-joke",       description: "Get a random Chuck Norris joke",       parameters: {} },
     { name: "get-chuck-categories", description: "Get all Chuck Norris joke categories", parameters: {} },
     { name: "get-dad-joke",         description: "Get a random dad joke",                parameters: {} },
     { name: "get-yo-mama-joke",     description: "Get a random Yo-Mama joke",            parameters: {} },
-
-    /* ── Weather tool with required `city` ── */
     {
       name: "get-weather",
       description: "Get current weather information for a given city",
@@ -28,56 +25,44 @@ const server = new McpServer({
   ],
 });
 
-/* ───────── Joke handlers ───────── */
-server.tool("get-chuck-joke",       "Get a random Chuck Norris joke",       async (_p: any, _e: any) => {
+/* ───── Joke tool handlers (description arg removed) ───── */
+server.tool("get-chuck-joke", async () => {
   const { value } = await fetch("https://api.chucknorris.io/jokes/random").then(r => r.json());
   return { content: [{ type: "text", text: value }] };
 });
 
-server.tool("get-chuck-categories","Get all Chuck Norris joke categories", async (_p: any, _e: any) => {
+server.tool("get-chuck-categories", async () => {
   const data = await fetch("https://api.chucknorris.io/jokes/categories").then(r => r.json());
   return { content: [{ type: "text", text: data.join(", ") }] };
 });
 
-server.tool("get-dad-joke",        "Get a random dad joke",                async (_p: any, _e: any) => {
-  const { joke } = await fetch("https://icanhazdadjoke.com/", { headers:{ Accept:"application/json" } }).then(r => r.json());
+server.tool("get-dad-joke", async () => {
+  const { joke } = await fetch("https://icanhazdadjoke.com/", { headers: { Accept: "application/json" } }).then(r => r.json());
   return { content: [{ type: "text", text: joke }] };
 });
 
-server.tool("get-yo-mama-joke",    "Get a random Yo-Mama joke",            async (_p: any, _e: any) => {
+server.tool("get-yo-mama-joke", async () => {
   const { joke } = await fetch("https://www.yomama-jokes.com/api/v1/jokes/random").then(r => r.json());
   return { content: [{ type: "text", text: joke }] };
 });
 
-/* ───────── Weather handler ───────── */
-server.tool(
-  "get-weather",
-  "Get current weather information for a given city",
-  async (params: any, _extra: any) => {
-    const city: string | undefined = params?.city;
-    if (!city) {
-      // Should almost never happen because `city` is required
-      return { content: [{ type: "text", text: "Please tell me which city." }] };
-    }
-
-    try {
-      const data = await fetch(`https://wttr.in/${encodeURIComponent(city)}?format=j1`).then(r => r.json());
-      const cur  = data.current_condition?.[0];
-      if (!cur) throw new Error("No data");
-
-      const reply =
-        `Weather in ${city}: ${cur.weatherDesc?.[0]?.value}. ` +
-        `Temp ${cur.temp_C} °C (${cur.temp_F} °F), ` +
-        `Humidity ${cur.humidity} %, Wind ${cur.windspeedKmph} km/h.`;
-
-      return { content: [{ type: "text", text: reply }] };
-    } catch {
-      return { content: [{ type: "text", text: `Sorry—couldn’t fetch weather for “${city}”.` }] };
-    }
+/* ───── Weather tool handler (description arg removed) ───── */
+server.tool("get-weather", async ({ city }: { city: string }) => {
+  const data = await fetch(`https://wttr.in/${encodeURIComponent(city)}?format=j1`).then(r => r.json());
+  const cur  = data.current_condition?.[0];
+  if (!cur) {
+    return { content: [{ type: "text", text: `Sorry—couldn’t fetch weather for “${city}”.` }] };
   }
-);
 
-/* ───────── Express + SSE plumbing ───────── */
+  const reply =
+    `Weather in ${city}: ${cur.weatherDesc?.[0]?.value}. ` +
+    `Temp ${cur.temp_C} °C (${cur.temp_F} °F), ` +
+    `Humidity ${cur.humidity} %, Wind ${cur.windspeedKmph} km/h.`;
+
+  return { content: [{ type: "text", text: reply }] };
+});
+
+/* ───── Express + SSE plumbing ───── */
 const app = express();
 const transports: Record<string, SSEServerTransport> = {};
 
