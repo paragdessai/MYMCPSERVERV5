@@ -34,76 +34,69 @@ const server = new McpServer({
         city: {
           type: "string",
           description: "Name of the city, e.g. 'New York'",
-          required: true, // Copilot must obtain this from the user
+          required: true,        // Copilot will prompt for this
         },
       },
     },
   ],
 });
 
-// Get Chuck Norris joke tool
+// ────────── Joke tools ──────────
 const getChuckJoke = server.tool(
   "get-chuck-joke",
   "Get a random Chuck Norris joke",
   async () => {
-    const response = await fetch("https://api.chucknorris.io/jokes/random");
-    const data = await response.json();
-    return {
-      content: [{ type: "text", text: data.value }],
-    };
+    const res = await fetch("https://api.chucknorris.io/jokes/random");
+    const data = await res.json();
+    return { content: [{ type: "text", text: data.value }] };
   }
 );
 
-// Get Chuck Norris joke categories tool
 const getChuckCategories = server.tool(
   "get-chuck-categories",
   "Get all available categories for Chuck Norris jokes",
   async () => {
-    const response = await fetch("https://api.chucknorris.io/jokes/categories");
-    const data = await response.json();
-    return {
-      content: [{ type: "text", text: data.join(", ") }],
-    };
+    const res = await fetch("https://api.chucknorris.io/jokes/categories");
+    const data = await res.json();
+    return { content: [{ type: "text", text: data.join(", ") }] };
   }
 );
 
-// Get Dad joke tool
 const getDadJoke = server.tool(
   "get-dad-joke",
   "Get a random dad joke",
   async () => {
-    const response = await fetch("https://icanhazdadjoke.com/", {
+    const res = await fetch("https://icanhazdadjoke.com/", {
       headers: { Accept: "application/json" },
     });
-    const data = await response.json();
-    return {
-      content: [{ type: "text", text: data.joke }],
-    };
+    const data = await res.json();
+    return { content: [{ type: "text", text: data.joke }] };
   }
 );
 
-// Get Yo Mama joke tool
 const getYoMamaJoke = server.tool(
   "get-yo-mama-joke",
   "Get a random Yo Mama joke",
   async () => {
-    const response = await fetch(
+    const res = await fetch(
       "https://www.yomama-jokes.com/api/v1/jokes/random"
     );
-    const data = await response.json();
-    return {
-      content: [{ type: "text", text: data.joke }],
-    };
+    const data = await res.json();
+    return { content: [{ type: "text", text: data.joke }] };
   }
 );
 
-// Get Weather tool (fixed)
+// ────────── Weather tool (compile-safe) ──────────
 const getWeather = server.tool(
   "get-weather",
   "Get current weather information for a given city",
-  async ({ city }: { city?: string }) => {
+  async (params: any) => {
+    // Works with both param styles: { city } OR { parameters: { city } }
+    const city: string | undefined =
+      params?.city ?? params?.parameters?.city;
+
     if (!city) {
-      // Extra safety: should rarely happen because `required: true`
+      // Should rarely happen because city is marked required
       return {
         content: [
           { type: "text", text: "Please specify a city name (e.g. London)." },
@@ -112,10 +105,10 @@ const getWeather = server.tool(
     }
 
     try {
-      const response = await fetch(
+      const res = await fetch(
         `https://wttr.in/${encodeURIComponent(city)}?format=j1`
       );
-      const data = await response.json();
+      const data = await res.json();
       const current = data.current_condition?.[0];
       if (!current) throw new Error("No weather data");
 
@@ -146,10 +139,9 @@ const getWeather = server.tool(
   }
 );
 
+// ────────── Express + SSE plumbing ──────────
 const app = express();
-
-/* Support multiple simultaneous SSE connections */
-const transports: { [sessionId: string]: SSEServerTransport } = {};
+const transports: Record<string, SSEServerTransport> = {};
 
 app.get("/sse", async (req: Request, res: Response) => {
   const host = req.get("host");
@@ -157,9 +149,7 @@ app.get("/sse", async (req: Request, res: Response) => {
   const transport = new SSEServerTransport(fullUri, res);
 
   transports[transport.sessionId] = transport;
-  res.on("close", () => {
-    delete transports[transport.sessionId];
-  });
+  res.on("close", () => delete transports[transport.sessionId]);
 
   await server.connect(transport);
 });
@@ -179,6 +169,6 @@ app.get("/", (_req, res) => {
 });
 
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
-  console.log(`✅ Server is running at http://localhost:${PORT}`);
-});
+app.listen(PORT, () =>
+  console.log(`✅ Server is running at http://localhost:${PORT}`)
+);
