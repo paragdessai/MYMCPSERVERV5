@@ -27,6 +27,23 @@ const server = new McpServer({
       description: "Get a random Yo Mama joke",
       parameters: {},
     },
+
+    /* ──────────────── NEW WEATHER TOOL ──────────────── */
+    {
+      name: "get-weather",
+      description: "Get current weather information for a given city",
+      parameters: {
+        type: "object",
+        properties: {
+          city: {
+            type: "string",
+            description: "Name of the city, e.g. 'New York'",
+          },
+        },
+        required: ["city"],
+      },
+    },
+    /* ─────────────────────────────────────────────────── */
   ],
 });
 
@@ -107,6 +124,48 @@ const getYoMamaJoke = server.tool(
     };
   }
 );
+
+/* ──────────────── NEW WEATHER TOOL HANDLER ──────────────── */
+const getWeather = server.tool(
+  "get-weather",
+  "Get current weather information for a given city",
+  async ({ city }: { city: string }) => {
+    try {
+      // wttr.in returns JSON with current conditions at /{city}?format=j1
+      const response = await fetch(
+        `https://wttr.in/${encodeURIComponent(city)}?format=j1`
+      );
+      const data = await response.json();
+      const current = data.current_condition?.[0];
+      if (!current) throw new Error("No weather data");
+
+      const description = current.weatherDesc?.[0]?.value;
+      const tempC = current.temp_C;
+      const tempF = current.temp_F;
+      const humidity = current.humidity;
+      const wind = current.windspeedKmph;
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Weather in ${city}: ${description}. Temp ${tempC} °C (${tempF} °F), Humidity ${humidity} %, Wind ${wind} km/h.`,
+          },
+        ],
+      };
+    } catch {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Sorry—couldn’t fetch weather for "${city}".`,
+          },
+        ],
+      };
+    }
+  }
+);
+/* ─────────────────────────────────────────────────────────── */
 
 const app = express();
 
