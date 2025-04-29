@@ -122,24 +122,19 @@ const getYoMamaJoke = server.tool(
   }
 );
 
-// Get Country facts tool
-const getCountryFacts = server.tool(
+// --- Updated registration for the country-facts tool with explicit generic ---
+const getCountryFacts = server.tool<{ country: string }>(
   "get-country-facts",
   "Get three facts about a specified country",
-  async ({ country }: { country: string }) => {
-    // call the Rest Countries API
-    const response = await fetch(
+  async ({ country }) => {
+    const resp = await fetch(
       `https://restcountries.com/v3.1/name/${encodeURIComponent(country)}?fullText=true`
     );
-    const data = await response.json();
-
+    const data = await resp.json();
     if (!Array.isArray(data) || data.length === 0) {
       return {
         content: [
-          {
-            type: "text",
-            text: `No data found for country "${country}".`,
-          },
+          { type: "text", text: `No data found for country "${country}".` },
         ],
       };
     }
@@ -170,16 +165,11 @@ const app = express();
 const transports: { [sessionId: string]: SSEServerTransport } = {};
 
 app.get("/sse", async (req: Request, res: Response) => {
-  // Get the full URI from the request
   const host = req.get("host");
-
   const fullUri = `https://${host}/jokes`;
   const transport = new SSEServerTransport(fullUri, res);
-
   transports[transport.sessionId] = transport;
-  res.on("close", () => {
-    delete transports[transport.sessionId];
-  });
+  res.on("close", () => delete transports[transport.sessionId]);
   await server.connect(transport);
 });
 
@@ -198,7 +188,6 @@ app.get("/", (_req, res) => {
 });
 
 const PORT = process.env.PORT || 3001;
-
 app.listen(PORT, () => {
   console.log(`✅ Server is running at http://localhost:${PORT}`);
 });
