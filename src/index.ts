@@ -130,7 +130,7 @@ const getCountryFacts = server.tool(
   },
   async ({ country }) => {
     const resp = await fetch(
-      `https://restcountries.com/v3.1/name/${encodeURIComponent(country)}?fullText=true`
+      "https://restcountries.com/v3.1/name/${encodeURIComponent(country)}?fullText=true"
     );
     const data = await resp.json();
 
