@@ -126,10 +126,7 @@ const getYoMamaJoke = server.tool(
 const getCountryFacts = server.tool(
   "get-country-facts",
   "Get three facts about a specified country",
-  async (request) => {
-    // extract the 'country' parameter from the incoming request
-    const { country } = request.params as { country: string };
-
+  async ({ country }: { country: string }) => {
     // call the Rest Countries API
     const response = await fetch(
       `https://restcountries.com/v3.1/name/${encodeURIComponent(country)}?fullText=true`
