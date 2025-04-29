@@ -27,6 +27,20 @@ const server = new McpServer({
       description: "Get a random Yo Mama joke",
       parameters: {},
     },
+    {
+      name: "get-country-facts",
+      description: "Get three facts about a specified country",
+      parameters: {
+        type: "object",
+        properties: {
+          country: {
+            type: "string",
+            description: "Name of the country to retrieve facts for",
+          },
+        },
+        required: ["country"],
+      },
+    },
   ],
 });
 
@@ -103,6 +117,43 @@ const getYoMamaJoke = server.tool(
           type: "text",
           text: data.joke,
         },
+      ],
+    };
+  }
+);
+
+// Get Country facts tool
+const getCountryFacts = server.tool(
+  "get-country-facts",
+  "Get three facts about a specified country",
+  async ({ country }) => {
+    const response = await fetch(
+      `https://restcountries.com/v3.1/name/${encodeURIComponent(country)}?fullText=true`
+    );
+    const data = await response.json();
+    if (!Array.isArray(data) || data.length === 0) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `No data found for country "${country}".`,
+          },
+        ],
+      };
+    }
+    const info = data[0];
+    const capital = Array.isArray(info.capital)
+      ? info.capital.join(", ")
+      : info.capital || "N/A";
+    const population = info.population
+      ? info.population.toLocaleString()
+      : "N/A";
+    const region = info.region || "N/A";
+    return {
+      content: [
+        { type: "text", text: `Capital: ${capital}` },
+        { type: "text", text: `Population: ${population}` },
+        { type: "text", text: `Region: ${region}` },
       ],
     };
   }
