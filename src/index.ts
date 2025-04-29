@@ -7,69 +7,77 @@ const server = new McpServer({
   description: "A server that provides jokes (and weather!)",
   version: "1.0.0",
   tools: [
-    /* ───────────── Joke tools ───────────── */
-    { name: "get-chuck-joke",      description: "Get a random Chuck Norris joke", parameters: {} },
-    { name: "get-chuck-categories",description: "Get all available categories for Chuck Norris jokes", parameters: {} },
-    { name: "get-dad-joke",        description: "Get a random dad joke",          parameters: {} },
-    { name: "get-yo-mama-joke",    description: "Get a random Yo Mama joke",      parameters: {} },
+    /* ── Joke tools (no parameters) ── */
+    { name: "get-chuck-joke",       description: "Get a random Chuck Norris joke",       parameters: {} },
+    { name: "get-chuck-categories", description: "Get all Chuck Norris joke categories", parameters: {} },
+    { name: "get-dad-joke",         description: "Get a random dad joke",                parameters: {} },
+    { name: "get-yo-mama-joke",     description: "Get a random Yo-Mama joke",            parameters: {} },
 
-    /* ───────────── Weather tool ───────────── */
+    /* ── Weather tool with required `city` ── */
     {
       name: "get-weather",
       description: "Get current weather information for a given city",
       parameters: {
-        city: {
-          type: "string",
-          description: "Name of the city, e.g. \"New York\"",
-          required: true        // ← Copilot will not attempt the call until this is present
+        type: "object",
+        properties: {
+          city: { type: "string", description: "City name, e.g. \"New York\"" },
         },
+        required: ["city"],
       },
     },
   ],
 });
 
-/* ───────────── Joke tool handlers ───────────── */
-server.tool("get-chuck-joke", "Get a random Chuck Norris joke", async () => {
+/* ───────── Joke handlers ───────── */
+server.tool("get-chuck-joke",       "Get a random Chuck Norris joke",       async (_p: any, _e: any) => {
   const { value } = await fetch("https://api.chucknorris.io/jokes/random").then(r => r.json());
   return { content: [{ type: "text", text: value }] };
 });
 
-server.tool("get-chuck-categories","Get all available categories for Chuck Norris jokes", async () => {
+server.tool("get-chuck-categories","Get all Chuck Norris joke categories", async (_p: any, _e: any) => {
   const data = await fetch("https://api.chucknorris.io/jokes/categories").then(r => r.json());
   return { content: [{ type: "text", text: data.join(", ") }] };
 });
 
-server.tool("get-dad-joke","Get a random dad joke", async () => {
-  const { joke } = await fetch("https://icanhazdadjoke.com/",{ headers:{ Accept:"application/json" }}).then(r => r.json());
+server.tool("get-dad-joke",        "Get a random dad joke",                async (_p: any, _e: any) => {
+  const { joke } = await fetch("https://icanhazdadjoke.com/", { headers:{ Accept:"application/json" } }).then(r => r.json());
   return { content: [{ type: "text", text: joke }] };
 });
 
-server.tool("get-yo-mama-joke","Get a random Yo Mama joke", async () => {
+server.tool("get-yo-mama-joke",    "Get a random Yo-Mama joke",            async (_p: any, _e: any) => {
   const { joke } = await fetch("https://www.yomama-jokes.com/api/v1/jokes/random").then(r => r.json());
   return { content: [{ type: "text", text: joke }] };
 });
 
-/* ───────────── Weather tool handler (compile-safe) ───────────── */
+/* ───────── Weather handler ───────── */
 server.tool(
   "get-weather",
   "Get current weather information for a given city",
-  async ({ city }: { city: string }) => {
+  async (params: any, _extra: any) => {
+    const city: string | undefined = params?.city;
+    if (!city) {
+      // Should almost never happen because `city` is required
+      return { content: [{ type: "text", text: "Please tell me which city." }] };
+    }
+
     try {
       const data = await fetch(`https://wttr.in/${encodeURIComponent(city)}?format=j1`).then(r => r.json());
       const cur  = data.current_condition?.[0];
       if (!cur) throw new Error("No data");
 
-      const desc = cur.weatherDesc?.[0]?.value;
-      const result = `Weather in ${city}: ${desc}. Temp ${cur.temp_C} °C (${cur.temp_F} °F), Humidity ${cur.humidity} %, Wind ${cur.windspeedKmph} km/h.`;
+      const reply =
+        `Weather in ${city}: ${cur.weatherDesc?.[0]?.value}. ` +
+        `Temp ${cur.temp_C} °C (${cur.temp_F} °F), ` +
+        `Humidity ${cur.humidity} %, Wind ${cur.windspeedKmph} km/h.`;
 
-      return { content: [{ type: "text", text: result }] };
+      return { content: [{ type: "text", text: reply }] };
     } catch {
       return { content: [{ type: "text", text: `Sorry—couldn’t fetch weather for “${city}”.` }] };
     }
   }
 );
 
-/* ───────────── Express + SSE plumbing ───────────── */
+/* ───────── Express + SSE plumbing ───────── */
 const app = express();
 const transports: Record<string, SSEServerTransport> = {};
 
@@ -89,4 +97,4 @@ app.post("/jokes", async (req: Request, res: Response) => {
 app.get("/", (_req, res) => res.send("The Jokes MCP server is running!"));
 
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => console.log(`✅ Server running at http://localhost:${PORT}`));
+app.listen(PORT, () => console.log(`✅ Server is running at http://localhost:${PORT}`));
