@@ -28,9 +28,9 @@ const server = new McpServer({
       parameters: {},
     },
     {
+      /* ───── Weather tool definition ───── */
       name: "get-weather",
       description: "Get current weather information for a given city",
-      /*  ★ Use true JSON-Schema so the LLM knows the argument is required */
       parameters: {
         type: "object",
         properties: {
@@ -45,7 +45,7 @@ const server = new McpServer({
   ],
 });
 
-// ────────── Joke tools ──────────
+/* ────────── Joke tools ────────── */
 const getChuckJoke = server.tool(
   "get-chuck-joke",
   "Get a random Chuck Norris joke",
@@ -90,12 +90,14 @@ const getYoMamaJoke = server.tool(
   }
 );
 
-// ────────── Weather tool ──────────
+/* ────────── Weather tool (build-error free) ────────── */
 const getWeather = server.tool(
   "get-weather",
   "Get current weather information for a given city",
-  // `params` comes back as { city } when JSON-Schema is used.
-  async (params: { city?: string }) => {
+  async (
+    params: { city?: string },           // parameters from the LLM/tool call
+    _extras: unknown                     // RequestHandlerExtra (unused here)
+  ) => {
     const city = params.city?.trim();
     if (!city) {
       return {
@@ -140,7 +142,7 @@ const getWeather = server.tool(
   }
 );
 
-// ────────── Express + SSE plumbing ──────────
+/* ────────── Express + SSE plumbing ────────── */
 const app = express();
 const transports: Record<string, SSEServerTransport> = {};
 
