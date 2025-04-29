@@ -34,6 +34,8 @@ const server = new McpServer({
         city: {
           type: "string",
           description: "Name of the city, e.g. 'New York'",
+          /** ─── Required flag tells Copilot to prompt the user ─── */
+          required: true,
         },
       },
     },
@@ -48,12 +50,7 @@ const getChuckJoke = server.tool(
     const response = await fetch("https://api.chucknorris.io/jokes/random");
     const data = await response.json();
     return {
-      content: [
-        {
-          type: "text",
-          text: data.value,
-        },
-      ],
+      content: [{ type: "text", text: data.value }],
     };
   }
 );
@@ -66,12 +63,7 @@ const getChuckCategories = server.tool(
     const response = await fetch("https://api.chucknorris.io/jokes/categories");
     const data = await response.json();
     return {
-      content: [
-        {
-          type: "text",
-          text: data.join(", "),
-        },
-      ],
+      content: [{ type: "text", text: data.join(", ") }],
     };
   }
 );
@@ -82,18 +74,11 @@ const getDadJoke = server.tool(
   "Get a random dad joke",
   async () => {
     const response = await fetch("https://icanhazdadjoke.com/", {
-      headers: {
-        Accept: "application/json",
-      },
+      headers: { Accept: "application/json" },
     });
     const data = await response.json();
     return {
-      content: [
-        {
-          type: "text",
-          text: data.joke,
-        },
-      ],
+      content: [{ type: "text", text: data.joke }],
     };
   }
 );
@@ -108,12 +93,7 @@ const getYoMamaJoke = server.tool(
     );
     const data = await response.json();
     return {
-      content: [
-        {
-          type: "text",
-          text: data.joke,
-        },
-      ],
+      content: [{ type: "text", text: data.joke }],
     };
   }
 );
@@ -123,7 +103,17 @@ const getWeather = server.tool(
   "get-weather",
   "Get current weather information for a given city",
   async (req: any) => {
-    const city = req.parameters?.city as string;
+    const city = req.parameters?.city as string | undefined;
+
+    // Guard clause if something slips past the schema
+    if (!city) {
+      return {
+        content: [
+          { type: "text", text: "Please specify a city name (e.g. London)." },
+        ],
+      };
+    }
+
     try {
       const response = await fetch(
         `https://wttr.in/${encodeURIComponent(city)}?format=j1`
@@ -151,7 +141,7 @@ const getWeather = server.tool(
         content: [
           {
             type: "text",
-            text: `Sorry—couldn’t fetch weather for "${city}".`,
+            text: `Sorry—couldn’t fetch weather for “${city}”.`,
           },
         ],
       };
@@ -161,14 +151,11 @@ const getWeather = server.tool(
 
 const app = express();
 
-// to support multiple simultaneous connections we have a lookup object from
-// sessionId to transport
+/* Multiplex SSE connections by sessionId */
 const transports: { [sessionId: string]: SSEServerTransport } = {};
 
 app.get("/sse", async (req: Request, res: Response) => {
-  // Get the full URI from the request
   const host = req.get("host");
-
   const fullUri = `https://${host}/jokes`;
   const transport = new SSEServerTransport(fullUri, res);
 
@@ -194,7 +181,6 @@ app.get("/", (_req, res) => {
 });
 
 const PORT = process.env.PORT || 3001;
-
 app.listen(PORT, () => {
   console.log(`✅ Server is running at http://localhost:${PORT}`);
 });
