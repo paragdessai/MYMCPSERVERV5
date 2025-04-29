@@ -34,8 +34,7 @@ const server = new McpServer({
         city: {
           type: "string",
           description: "Name of the city, e.g. 'New York'",
-          /** ─── Required flag tells Copilot to prompt the user ─── */
-          required: true,
+          required: true, // Copilot must obtain this from the user
         },
       },
     },
@@ -98,15 +97,13 @@ const getYoMamaJoke = server.tool(
   }
 );
 
-// Get Weather tool
+// Get Weather tool (fixed)
 const getWeather = server.tool(
   "get-weather",
   "Get current weather information for a given city",
-  async (req: any) => {
-    const city = req.parameters?.city as string | undefined;
-
-    // Guard clause if something slips past the schema
+  async ({ city }: { city?: string }) => {
     if (!city) {
+      // Extra safety: should rarely happen because `required: true`
       return {
         content: [
           { type: "text", text: "Please specify a city name (e.g. London)." },
@@ -122,7 +119,7 @@ const getWeather = server.tool(
       const current = data.current_condition?.[0];
       if (!current) throw new Error("No weather data");
 
-      const description = current.weatherDesc?.[0]?.value;
+      const desc = current.weatherDesc?.[0]?.value;
       const tempC = current.temp_C;
       const tempF = current.temp_F;
       const humidity = current.humidity;
@@ -132,7 +129,7 @@ const getWeather = server.tool(
         content: [
           {
             type: "text",
-            text: `Weather in ${city}: ${description}. Temp ${tempC} °C (${tempF} °F), Humidity ${humidity} %, Wind ${wind} km/h.`,
+            text: `Weather in ${city}: ${desc}. Temp ${tempC} °C (${tempF} °F), Humidity ${humidity} %, Wind ${wind} km/h.`,
           },
         ],
       };
@@ -151,7 +148,7 @@ const getWeather = server.tool(
 
 const app = express();
 
-/* Multiplex SSE connections by sessionId */
+/* Support multiple simultaneous SSE connections */
 const transports: { [sessionId: string]: SSEServerTransport } = {};
 
 app.get("/sse", async (req: Request, res: Response) => {
@@ -163,6 +160,7 @@ app.get("/sse", async (req: Request, res: Response) => {
   res.on("close", () => {
     delete transports[transport.sessionId];
   });
+
   await server.connect(transport);
 });
 
